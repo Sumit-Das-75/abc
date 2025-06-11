@@ -515,3 +515,462 @@ Summary
 Models: Category, Enrollment, Payment, Transaction (with toMap() and fromMap())
 Services: CRUD methods using AppwriteClient
 Controllers: Expose REST endpoints
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+I'd be happy to help you with the project structure. Here's a suggested directory structure for your Spring Boot project:
+
+CopyRun
+com.example
+  |
+  |- controller
+  |    |- CategoryController.java
+  |    |- EnrollmentController.java
+  |    |- PaymentController.java
+  |    |- TransactionController.java
+  |
+  |- service
+  |    |- CategoryService.java
+  |    |- EnrollmentService.java
+  |    |- PaymentService.java
+  |    |- TransactionService.java
+  |
+  |- model
+  |    |- Category.java
+  |    |- Enrollment.java
+  |    |- Payment.java
+  |    |- Transaction.java
+  |
+  |- util
+  |    |- AppwriteClient.java
+  |    |- AppwriteProperties.java
+  |
+  |- Application.java
+And here's the updated code for each class:
+
+CategoryController.java
+
+CopyRun
+package com.example.controller;
+
+import com.example.model.Category;
+import com.example.service.CategoryService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/categories")
+public class CategoryController {
+
+    @Autowired
+    private CategoryService categoryService;
+
+    @PostMapping
+    public ResponseEntity<Category> create(@RequestBody Category category) {
+        return ResponseEntity.ok(categoryService.createCategory(category));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Category> get(@PathVariable String id) {
+        Category category = categoryService.getCategory(id);
+        if (category != null) {
+            return ResponseEntity.ok(category);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Category> update(@PathVariable String id, @RequestBody Category category) {
+        return ResponseEntity.ok(categoryService.updateCategory(id, category));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id) {
+        categoryService.deleteCategory(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Category>> list() {
+        return ResponseEntity.ok(categoryService.listCategories());
+    }
+}
+EnrollmentController.java
+
+CopyRun
+package com.example.controller;
+
+import com.example.model.Enrollment;
+import com.example.service.EnrollmentService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/enrollments")
+public class EnrollmentController {
+
+    @Autowired
+    private EnrollmentService enrollmentService;
+
+    @PostMapping
+    public ResponseEntity<Enrollment> create(@RequestBody Enrollment enrollment) {
+        return ResponseEntity.ok(enrollmentService.createEnrollment(enrollment));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Enrollment> get(@PathVariable String id) {
+        Enrollment enrollment = enrollmentService.getEnrollment(id);
+        if (enrollment != null) {
+            return ResponseEntity.ok(enrollment);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Enrollment> update(@PathVariable String id, @RequestBody Enrollment enrollment) {
+        return ResponseEntity.ok(enrollmentService.updateEnrollment(id, enrollment));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id) {
+        enrollmentService.deleteEnrollment(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Enrollment>> list() {
+        return ResponseEntity.ok(enrollmentService.listEnrollments());
+    }
+}
+PaymentController.java
+
+CopyRun
+package com.example.controller;
+
+import com.example.model.Payment;
+import com.example.service.PaymentService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/payments")
+public class PaymentController {
+
+    @Autowired
+    private PaymentService paymentService;
+
+    @PostMapping
+    public ResponseEntity<Payment> create(@RequestBody Payment payment) {
+        return ResponseEntity.ok(paymentService.createPayment(payment));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Payment> get(@PathVariable String id) {
+        Payment payment = paymentService.getPayment(id);
+        if (payment != null) {
+            return ResponseEntity.ok(payment);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Payment> update(@PathVariable String id, @RequestBody Payment payment) {
+        return ResponseEntity.ok(paymentService.updatePayment(id, payment));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id) {
+        paymentService.deletePayment(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Payment>> list() {
+        return ResponseEntity.ok(paymentService.listPayments());
+    }
+}
+TransactionController.java
+
+CopyRun
+package com.example.controller;
+
+import com.example.model.Transaction;
+import com.example.service.TransactionService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/transactions")
+public class TransactionController {
+
+    @Autowired
+    private TransactionService transactionService;
+
+    @PostMapping
+    public ResponseEntity<Transaction> create(@RequestBody Transaction transaction) {
+        return ResponseEntity.ok(transactionService.createTransaction(transaction));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Transaction> get(@PathVariable String id) {
+        Transaction transaction = transactionService.getTransaction(id);
+        if (transaction != null) {
+            return ResponseEntity.ok(transaction);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Transaction> update(@PathVariable String id, @RequestBody Transaction transaction) {
+        return ResponseEntity.ok(transactionService.updateTransaction(id, transaction));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id) {
+        transactionService.deleteTransaction(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Transaction>> list() {
+        return ResponseEntity.ok(transactionService.listTransactions());
+    }
+}
+AppwriteClient.java
+
+CopyRun
+package com.example.util;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
+
+@Component
+public class AppwriteClient {
+
+    private final RestTemplate restTemplate;
+
+    public AppwriteClient(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    public <T> T sendRequest(HttpMethod method, String path, Object body, Class<T> responseType) {
+        String url = "https://YOUR_APPWRITE_ENDPOINT/v1/database/YOUR_DATABASE_ID/collections/YOUR_COLLECTION_ID/documents";
+        HttpEntity<String> entity = null;
+        if (body != null) {
+            entity = new HttpEntity<>(body.toString(), HttpHeaders.EMPTY);
+        }
+        try {
+            ResponseEntity<T> response = restTemplate.exchange(url + path, method, entity, responseType);
+            return response.getBody();
+        } catch (Exception e) {
+            // Handle error, log, etc.
+            throw new RuntimeException("Error during Appwrite request: " + e.getMessage(), e);
+        }
+    }
+}
+AppwriteProperties.java
+
+CopyRun
+package com.example.util;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.stereotype.Component;
+
+@Component
+@PropertySource("classpath:application.properties")
+public class AppwriteProperties {
+
+    @Value("${appwrite.endpoint}")
+    private String endpoint;
+
+    @Value("${appwrite.projectId}")
+    private String projectId;
+
+    @Value("${appwrite.apiKey}")
+    private String apiKey;
+
+}
+CategoryService.java
+
+CopyRun
+package com.example.service;
+
+import com.example.model.Category;
+import com.example.util.AppwriteClient;
+import com.example.util.AppwriteProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class CategoryService {
+
+    @Autowired
+    private AppwriteClient client;
+
+    @Autowired
+    private AppwriteProperties properties;
+
+}
+Please note that you'll need to replace the placeholder values in AppwriteProperties with your actual Appwrite endpoint, project ID, and API key.
+
+Also, make sure to add the necessary dependencies to your pom.xml file if you're using Maven:
+
+CopyRun
+<dependencies>
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+  </dependency>
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-rest</artifactId>
+  </dependency>
+  <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+  </dependency>
+</dependencies>
+If you're using Gradle, add the following dependencies to your build.gradle file:
+
+CopyRun
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-data-rest'
+  implementation 'com.fasterxml.jackson.core:jackson-databind'
+}
+This should give you a good starting point for your Spring Boot application. Remember to update the placeholder values in AppwriteProperties and adjust the configuration as needed to match your Appwrite setup.
+
+Please let me know if you have any further questions or if there's anything else I can help with!
