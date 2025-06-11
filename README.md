@@ -1,216 +1,210 @@
-Use Java's HttpClient or a REST client (like RestTemplate or WebClient) to make HTTP requests to the Appwrite REST API.
-No Spring Data repositories; all data operations go through REST calls.
-Models will have methods to convert to/from Map<String, Object> for JSON serialization/deserialization.
-Controllers will handle HTTP requests from Angular and delegate to services.
-Services will handle REST API interactions with Appwrite.
+Complete Spring Boot Integration with Appwrite REST API
 1. Configuration Class
-Create a class to hold Appwrite configuration details:
+Store Appwrite configuration details securely, e.g., in application.properties.
+
+CopyRun
+# src/main/resources/application.properties
+appwrite.endpoint=https://YOUR_APPWRITE_ENDPOINT/v1
+appwrite.projectId=your_project_id
+appwrite.apiKey=your_api_key
+appwrite.databaseId=your_database_id
+# Add collection IDs for each entity
+appwrite.collections.users=user_collection_id
+appwrite.collections.courses=course_collection_id
+appwrite.collections.categories=category_collection_id
+appwrite.collections.enrollments=enrollment_collection_id
+appwrite.collections.payments=payment_collection_id
+appwrite.collections.transactions=transaction_collection_id
+Create a configuration class to load these:
 
 CopyRun
 package com.example.config;
 
-import java.net.http.HttpClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 
-public class AppwriteConfig {
-    public static final String ENDPOINT = "https://YOUR_APPWRITE_ENDPOINT/v1"; // e.g., https://appwrite.example.com/v1
-    public static final String PROJECT_ID = "your_project_id";
-    public static final String API_KEY = "your_api_key";
+@Configuration
+public class AppwriteProperties {
 
-    public static final String DATABASE_ID = "your_database_id";
+    @Value("${appwrite.endpoint}")
+    public String endpoint;
 
-    // For HTTP client
-    public static final HttpClient httpClient = HttpClient.newHttpClient();
+    @Value("${appwrite.projectId}")
+    public String projectId;
+
+    @Value("${appwrite.apiKey}")
+    public String apiKey;
+
+    @Value("${appwrite.databaseId}")
+    public String databaseId;
+
+    @Value("${appwrite.collections.users}")
+    public String usersCollectionId;
+
+    @Value("${appwrite.collections.courses}")
+    public String coursesCollectionId;
+
+    @Value("${appwrite.collections.categories}")
+    public String categoriesCollectionId;
+
+    @Value("${appwrite.collections.enrollments}")
+    public String enrollmentsCollectionId;
+
+    @Value("${appwrite.collections.payments}")
+    public String paymentsCollectionId;
+
+    @Value("${appwrite.collections.transactions}")
+    public String transactionsCollectionId;
 }
-2. Utility Class for REST API Calls
-Create a helper class to handle HTTP requests:
+2. Utility Class for REST Calls
+Use Spring's RestTemplate or WebClient. Here, we'll use RestTemplate.
 
 CopyRun
 package com.example.util;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpRequest.BodyPublishers;
-import java.util.Map;
-
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.*;
+import org.springframework.stereotype.Component;
+import com.example.config.AppwriteProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class AppwriteHttpClient {
+@Component
+public class AppwriteClient {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private AppwriteProperties properties;
 
-    public static String sendRequest(String method, String url, Map<String, Object> body) throws IOException, InterruptedException {
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("X-Appwrite-Project", AppwriteConfig.PROJECT_ID)
-                .header("X-Appwrite-Key", AppwriteConfig.API_KEY)
-                .header("Content-Type", "application/json");
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-        if ("GET".equalsIgnoreCase(method)) {
-            requestBuilder = requestBuilder.GET();
-        } else if ("POST".equalsIgnoreCase(method)) {
-            String jsonBody = objectMapper.writeValueAsString(body);
-            requestBuilder = requestBuilder.POST(BodyPublishers.ofString(jsonBody));
-        } else if ("PUT".equalsIgnoreCase(method)) {
-            String jsonBody = objectMapper.writeValueAsString(body);
-            requestBuilder = requestBuilder.PUT(BodyPublishers.ofString(jsonBody));
-        } else if ("DELETE".equalsIgnoreCase(method)) {
-            requestBuilder = requestBuilder.DELETE();
-        } else {
-            throw new IllegalArgumentException("Unsupported HTTP method");
+    public <T> ResponseEntity<T> sendRequest(
+            HttpMethod method,
+            String path,
+            Object body,
+            Class<T> responseType) {
+
+        String url = properties.endpoint + path;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Appwrite-Project", properties.projectId);
+        headers.set("X-Appwrite-Key", properties.apiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<String> entity = null;
+        try {
+            String jsonBody = body != null ? objectMapper.writeValueAsString(body) : null;
+            entity = new HttpEntity<>(jsonBody, headers);
+        } catch (Exception e) {
+            throw new RuntimeException("Error serializing request body", e);
         }
 
-        HttpRequest request = requestBuilder.build();
-        HttpResponse<String> response = AppwriteConfig.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            return response.body();
-        } else {
-            throw new RuntimeException("HTTP Error: " + response.statusCode() + " Response: " + response.body());
+        ResponseEntity<T> response = null;
+        try {
+            response = new org.springframework.web.client.RestTemplate()
+                    .exchange(url, method, entity, responseType);
+        } catch (Exception e) {
+            // Handle error, log, etc.
+            throw new RuntimeException("Error during Appwrite request: " + e.getMessage(), e);
         }
-    }
-
-    public static Map<String, Object> parseJson(String json) throws IOException {
-        return objectMapper.readValue(json, Map.class);
+        return response;
     }
 }
-3. Model Classes
-Example for User:
+3. Models with Lombok
+Use Lombok to reduce boilerplate:
 
 CopyRun
 package com.example.model;
 
-import java.util.HashMap;
-import java.util.Map;
+import lombok.Data;
 
+@Data
 public class User {
-    private String id; // optional, for existing users
+    private String id;
     private String username;
     private String email;
-    private String password; // for creating user
-
-    // Constructors, getters, setters
-
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap<>();
-        map.put("username", username);
-        map.put("email", email);
-        // Do not include password here if you are using Appwrite's account API separately
-        return map;
-    }
-
-    public static User fromMap(Map<String, Object> map) {
-        User user = new User();
-        user.setId((String) map.get("id"));
-        user.setUsername((String) map.get("username"));
-        user.setEmail((String) map.get("email"));
-        return user;
-    }
+    private String password; // handle carefully
 }
-Similarly, create models for Course, Category, Enrollment, Payment, Transaction. Each has toMap() and fromMap().
+Repeat for other entities (Course, Category, etc.).
 
-4. Service Classes
-Example: UserService
+4. Services
+Each service will be annotated with @Service and injected with AppwriteClient.
+
+Example: UserService.java
 CopyRun
 package com.example.service;
 
 import com.example.model.User;
-import com.example.util.AppwriteHttpClient;
-
-import java.io.IOException;
-import java.net.http.HttpResponse;
-import java.util.HashMap;
+import com.example.util.AppwriteClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Service
 public class UserService {
 
-    private static final String BASE_URL = AppwriteConfig.ENDPOINT;
-    private static final String DATABASE_ID = AppwriteConfig.DATABASE_ID;
-    private static final String COLLECTION_ID = "users_collection_id"; // your collection id
+    @Autowired
+    private AppwriteClient client;
 
-    // Create User
+    @Autowired
+    private AppwriteProperties properties;
+
+    private String collectionId; // set in constructor or init
+
+    @org.springframework.context.annotation.PostConstruct
+    public void init() {
+        collectionId = properties.usersCollectionId;
+    }
+
     public User createUser(User user) {
-        String url = BASE_URL + "/database/" + DATABASE_ID + "/collections/" + COLLECTION_ID + "/documents";
-
-        try {
-            String response = AppwriteHttpClient.sendRequest("POST", url, user.toMap());
-            Map<String, Object> data = AppwriteHttpClient.parseJson(response);
-            return User.fromMap(data);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents";
+        var response = client.sendRequest(
+                HttpMethod.POST, path, user.toMap(), Map.class);
+        Map<String, Object> data = response.getBody();
+        return User.fromMap(data);
     }
 
-    // Get User
     public User getUser(String id) {
-        String url = BASE_URL + "/database/" + DATABASE_ID + "/collections/" + COLLECTION_ID + "/documents/" + id;
-
-        try {
-            String response = AppwriteHttpClient.sendRequest("GET", url, null);
-            Map<String, Object> data = AppwriteHttpClient.parseJson(response);
-            return User.fromMap(data);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents/" + id;
+        var response = client.sendRequest(
+                HttpMethod.GET, path, null, Map.class);
+        Map<String, Object> data = response.getBody();
+        return User.fromMap(data);
     }
 
-    // Update User
     public User updateUser(String id, User user) {
-        String url = BASE_URL + "/database/" + DATABASE_ID + "/collections/" + COLLECTION_ID + "/documents/" + id;
-
-        try {
-            String response = AppwriteHttpClient.sendRequest("PUT", url, user.toMap());
-            Map<String, Object> data = AppwriteHttpClient.parseJson(response);
-            return User.fromMap(data);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents/" + id;
+        var response = client.sendRequest(
+                HttpMethod.PUT, path, user.toMap(), Map.class);
+        Map<String, Object> data = response.getBody();
+        return User.fromMap(data);
     }
 
-    // Delete User
     public void deleteUser(String id) {
-        String url = BASE_URL + "/database/" + DATABASE_ID + "/collections/" + COLLECTION_ID + "/documents/" + id;
-
-        try {
-            AppwriteHttpClient.sendRequest("DELETE", url, null);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents/" + id;
+        client.sendRequest(HttpMethod.DELETE, path, null, Void.class);
     }
 
-    // List Users
     public List<User> listUsers() {
-        String url = BASE_URL + "/database/" + DATABASE_ID + "/collections/" + COLLECTION_ID + "/documents";
-
-        try {
-            String response = AppwriteHttpClient.sendRequest("GET", url, null);
-            Map<String, Object> data = AppwriteHttpClient.parseJson(response);
-            List<Map<String, Object>> documents = (List<Map<String, Object>>) data.get("documents");
-            return documents.stream()
-                    .map(User::fromMap)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return List.of();
-        }
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents";
+        var response = client.sendRequest(
+                HttpMethod.GET, path, null, Map.class);
+        Map<String, Object> data = response.getBody();
+        List<Map<String, Object>> docs = (List<Map<String, Object>>) data.get("documents");
+        return docs.stream().map(User::fromMap).collect(Collectors.toList());
     }
 }
-Similarly, create services for Course, Category, Enrollment, Payment, Transaction.
+Repeat similarly for other entities’ services.
 
 5. Controllers
-Example: UserController
+Standard Spring MVC controllers:
+
 CopyRun
 package com.example.controller;
 
 import com.example.model.User;
 import com.example.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -220,16 +214,17 @@ import java.util.List;
 @RequestMapping("/api/users")
 public class UserController {
 
-    private final UserService userService = new UserService();
+    @Autowired
+    private UserService userService;
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        User createdUser = userService.createUser(user);
-        return ResponseEntity.ok(createdUser);
+    public ResponseEntity<User> create(@RequestBody User user) {
+        User created = userService.createUser(user);
+        return ResponseEntity.ok(created);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUser(@PathVariable String id) {
+    public ResponseEntity<User> get(@PathVariable String id) {
         User user = userService.getUser(id);
         if (user != null) {
             return ResponseEntity.ok(user);
@@ -238,42 +233,285 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody User user) {
-        User updatedUser = userService.updateUser(id, user);
-        if (updatedUser != null) {
-            return ResponseEntity.ok(updatedUser);
-        }
-        return ResponseEntity.notFound().build();
+    public ResponseEntity<User> update(@PathVariable String id, @RequestBody User user) {
+        User updated = userService.updateUser(id, user);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping
-    public ResponseEntity<List<User>> listUsers() {
-        List<User> users = userService.listUsers();
-        return ResponseEntity.ok(users);
+    public ResponseEntity<List<User>> list() {
+        return ResponseEntity.ok(userService.listUsers());
     }
 }
-Similarly, create controllers for other entities, handling routes like:
+Repeat for other entities.
 
-/api/courses
-/api/categories
-/api/enrollments
-/api/payments
-/api/transactions
-6. Additional Notes
-Authentication & User Management: Use Appwrite’s Account API for user registration, login, password reset, etc. You can create a dedicated AuthController that interacts with Appwrite's account endpoints.
-ID Management: When creating documents, you can omit the ID to generate a new one or specify your own.
-Filtering: For listing documents with filters (e.g., courses by category), append query parameters or use the Appwrite Query API.
-Security: Ensure you handle API keys securely and possibly abstract them into environment variables or config files.
-7. Final Remarks
-This setup provides a full REST API backend that interacts directly with Appwrite via HTTP calls, replacing your previous in-memory or JDBC logic.
+Key Points:
+Use @Service classes for all logic, injected into controllers.
+Use Spring Boot's application.properties for config.
+Use RestTemplate or WebClient for REST calls.
+Use Lombok annotations for models (@Data) to reduce boilerplate.
+Handle exceptions, errors, and edge cases as needed.
+If you'd like, I can prepare a full project skeleton with all classes, or generate example classes for Course, Category, Enrollment, Payment, Transaction controllers and services** following this pattern. Let me know!
 
-Would you like me to prepare:
-Complete code snippets for each entity (Course, Category, Enrollment, etc.)?
-The full directory structure?
-Instructions on deploying or testing?
+Copy
+Summarize
+Delete
+complete the rest of the java classes which you left
+Regenerate
+Delete
+Certainly! I'll complete the remaining classes for your entities—Category, Enrollment, Payment, and Transaction—following the Spring Boot style with models, services, and controllers.
+
+1. Models
+Category.java
+CopyRun
+package com.example.model;
+
+import lombok.Data;
+import java.util.HashMap;
+import java.util.Map;
+
+@Data
+public class Category {
+    private String id;
+    private String name;
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        if (name != null) map.put("name", name);
+        return map;
+    }
+
+    public static Category fromMap(Map<String, Object> map) {
+        Category c = new Category();
+        c.setId((String) map.get("id"));
+        c.setName((String) map.get("name"));
+        return c;
+    }
+}
+Enrollment.java
+CopyRun
+package com.example.model;
+
+import lombok.Data;
+import java.util.HashMap;
+import java.util.Map;
+
+@Data
+public class Enrollment {
+    private String id;
+    private String userId;
+    private String courseId;
+    private String status;
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        if (userId != null) map.put("user_id", userId);
+        if (courseId != null) map.put("course_id", courseId);
+        if (status != null) map.put("status", status);
+        return map;
+    }
+
+    public static Enrollment fromMap(Map<String, Object> map) {
+        Enrollment e = new Enrollment();
+        e.setId((String) map.get("id"));
+        e.setUserId((String) map.get("user_id"));
+        e.setCourseId((String) map.get("course_id"));
+        e.setStatus((String) map.get("status"));
+        return e;
+    }
+}
+Payment.java
+CopyRun
+package com.example.model;
+
+import lombok.Data;
+import java.util.HashMap;
+import java.util.Map;
+
+@Data
+public class Payment {
+    private String id;
+    private String userId;
+    private double amount;
+    private String method;
+    private String date; // ISO8601
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        if (userId != null) map.put("user_id", userId);
+        map.put("amount", amount);
+        if (method != null) map.put("method", method);
+        if (date != null) map.put("date", date);
+        return map;
+    }
+
+    public static Payment fromMap(Map<String, Object> map) {
+        Payment p = new Payment();
+        p.setId((String) map.get("id"));
+        p.setUserId((String) map.get("user_id"));
+        p.setAmount(Double.parseDouble(String.valueOf(map.get("amount"))));
+        p.setMethod((String) map.get("method"));
+        p.setDate((String) map.get("date"));
+        return p;
+    }
+}
+Transaction.java
+CopyRun
+package com.example.model;
+
+import lombok.Data;
+import java.util.HashMap;
+import java.util.Map;
+
+@Data
+public class Transaction {
+    private String id;
+    private String userId;
+    private String type; // e.g., "credit" or "debit"
+    private double amount;
+    private String timestamp; // ISO8601
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        if (userId != null) map.put("user_id", userId);
+        if (type != null) map.put("type", type);
+        map.put("amount", amount);
+        if (timestamp != null) map.put("timestamp", timestamp);
+        return map;
+    }
+
+    public static Transaction fromMap(Map<String, Object> map) {
+        Transaction t = new Transaction();
+        t.setId((String) map.get("id"));
+        t.setUserId((String) map.get("user_id"));
+        t.setType((String) map.get("type"));
+        t.setAmount(Double.parseDouble(String.valueOf(map.get("amount"))));
+        t.setTimestamp((String) map.get("timestamp"));
+        return t;
+    }
+}
+2. Services
+Example for CategoryService.java:
+
+CopyRun
+package com.example.service;
+
+import com.example.model.Category;
+import com.example.util.AppwriteClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Service
+public class CategoryService {
+
+    @Autowired
+    private AppwriteClient client;
+
+    @Autowired
+    private AppwriteProperties properties;
+
+    private String collectionId;
+
+    @org.springframework.context.annotation.PostConstruct
+    public void init() {
+        collectionId = properties.categoriesCollectionId;
+    }
+
+    public Category createCategory(Category category) {
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents";
+        var response = client.sendRequest(HttpMethod.POST, path, category.toMap(), Map.class);
+        return Category.fromMap(response.getBody());
+    }
+
+    public Category getCategory(String id) {
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents/" + id;
+        var response = client.sendRequest(HttpMethod.GET, path, null, Map.class);
+        return Category.fromMap(response.getBody());
+    }
+
+    public Category updateCategory(String id, Category category) {
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents/" + id;
+        var response = client.sendRequest(HttpMethod.PUT, path, category.toMap(), Map.class);
+        return Category.fromMap(response.getBody());
+    }
+
+    public void deleteCategory(String id) {
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents/" + id;
+        client.sendRequest(HttpMethod.DELETE, path, null, Void.class);
+    }
+
+    public List<Category> listCategories() {
+        String path = "/database/" + properties.databaseId + "/collections/" + collectionId + "/documents";
+        var response = client.sendRequest(HttpMethod.GET, path, null, Map.class);
+        List<Map<String, Object>> docs = (List<Map<String, Object>>) response.getBody().get("documents");
+        return docs.stream().map(Category::fromMap).collect(Collectors.toList());
+    }
+}
+Repeat for EnrollmentService.java, PaymentService.java, and TransactionService.java, replacing collection IDs and models.
+
+3. Controllers
+Example for CategoryController.java:
+
+CopyRun
+package com.example.controller;
+
+import com.example.model.Category;
+import com.example.service.CategoryService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/categories")
+public class CategoryController {
+
+    @Autowired
+    private CategoryService categoryService;
+
+    @PostMapping
+    public ResponseEntity<Category> create(@RequestBody Category category) {
+        return ResponseEntity.ok(categoryService.createCategory(category));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Category> get(@PathVariable String id) {
+        Category category = categoryService.getCategory(id);
+        if (category != null) {
+            return ResponseEntity.ok(category);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Category> update(@PathVariable String id, @RequestBody Category category) {
+        return ResponseEntity.ok(categoryService.updateCategory(id, category));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id) {
+        categoryService.deleteCategory(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Category>> list() {
+        return ResponseEntity.ok(categoryService.listCategories());
+    }
+}
+Repeat for EnrollmentController, PaymentController, TransactionController.
+
+Summary
+Models: Category, Enrollment, Payment, Transaction (with toMap() and fromMap())
+Services: CRUD methods using AppwriteClient
+Controllers: Expose REST endpoints
